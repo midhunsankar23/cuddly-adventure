@@ -443,7 +443,7 @@ Both actions recorded in `member_payments`. The screenshot URL is stored. `marke
 Workspace subscription status → expired. Gym owner dashboard shows a full-screen paywall. Trainers can still log in but see a notice: "Gym subscription expired. Contact your gym owner." Members can still see their plan and check in — access is not cut for members when gym owner hasn't paid. This is a deliberate choice to not punish members for gym owner inaction.
 
 **Gym owner wants to give a member a branded app**
-v2 feature — Capacitor wraps the Nuxt web app with the gym's logo, name, and colours. Submitted to Play Store under gym's developer account. Same backend, same data. Gym pays a one-time fee for this service. All future updates are OTA — no re-submission needed unless native features change.
+v2 feature — Capacitor wraps the Next.js app with the gym's logo, name, and colours. Submitted to Play Store under gym's developer account. Same backend, same data. Gym pays a one-time fee for this service. All future updates are OTA — no re-submission needed unless native features change.
 
 **Two trainers at same gym assigned to same member**
 Prevented by app logic. One trainer per member per workspace. If gym wants to reassign a member to a different trainer, old trainer is unassigned and new trainer is assigned. The member's plans created by the old trainer remain readable by the new trainer.
@@ -460,8 +460,8 @@ Not prevented at schema level. Trainer sees it in their library as two entries. 
 
 | Layer | Choice | Reason |
 |---|---|---|
-| Frontend | Nuxt 3 | Vue-based, excellent Cloudflare Pages support |
-| Mobile | Capacitor | Wraps Nuxt as Android/iOS app, OTA updates via Cloudflare |
+| Frontend | Next.js 15 | React-based, mature Cloudflare Workers & Pages support |
+| Mobile | Capacitor | Wraps Next.js app as Android/iOS app, OTA updates via Cloudflare |
 | Hosting | Cloudflare Pages | Cheap, fast, global CDN, zero egress |
 | Backend / Auth / DB | Supabase | Auth + Postgres + Realtime + Storage in one |
 | Video / File Storage | Cloudflare R2 | Zero egress fees, S3-compatible |

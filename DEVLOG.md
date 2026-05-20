@@ -7,8 +7,8 @@ Add an entry every time you make an architectural decision.
 
 ## May 2026 — Initial architecture
 
-**Decision:** Nuxt 3 + Cloudflare Pages + Supabase
-**Why:** Nuxt has first-class Cloudflare support via Nitro preset. Supabase provides Auth + Postgres + Realtime in one. Cloudflare Pages auto-deploys from GitHub. Stack is well supported by AI coding tools.
+**Decision:** Next.js 15 + Cloudflare Workers & Pages + Supabase
+**Why:** Switched from Nuxt due to oxc-parser native binding bug on Cloudflare's build environment. Next.js 15 has mature Cloudflare support, larger ecosystem, better AI tooling support. Supabase provides Auth + Postgres + Realtime in one. Cloudflare auto-deploys from GitHub.
 
 **Decision:** One account, roles per workspace
 **Why:** Same user can be gym owner, trainer at another gym, and member at a third — all from one login. Like Instagram account switching. Roles stored in workspace_members table, not on the user.

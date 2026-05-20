@@ -1,25 +1,24 @@
 # CLAUDE.md — Instructions for Claude Code
 
-This file tells Claude Code everything it needs to know about this project.
-Read this before touching any file.
+Read this before touching any file in this project.
 
 ---
 
 ## What This Project Is
 
 FitDesk is a gym management SaaS for Indian gyms and freelance trainers.
-Built with Nuxt 3 + Supabase + Cloudflare.
+Next.js 15 + Supabase + Cloudflare Workers & Pages.
 
-Full context in README.md.
-Technical stack in STACK.md.
-Exact build sequence in BUILD_ORDER.md.
-Database schema in SCHEMA.md.
+Full context: README.md
+Technical stack: STACK.md
+Build sequence: BUILD_ORDER.md
+Database schema: SCHEMA.md
 
 ---
 
 ## The Single Most Important Concept
 
-Every user has ONE account. Roles come from workspaces, not from the account.
+Every user has ONE account. Roles come from workspaces, not the account.
 
 ```
 user (just an identity)
@@ -29,23 +28,47 @@ user (just an identity)
     └── MMA Academy | role: member
 ```
 
-The active workspace + role determines what the user sees and can do.
-This is stored in the Pinia workspace store.
-Every feature must check the active role before rendering or allowing actions.
+Active workspace + role determines what the user sees and can do.
+Stored in Zustand workspace-store.ts, persisted to localStorage.
+Every feature must check active role before rendering or allowing actions.
+
+---
+
+## Server vs Client Components — Most Important Next.js Rule
+
+```
+No directive at top = Server Component
+'use client' at top = Client Component
+```
+
+Server Component:
+- Use lib/supabase/server.ts
+- Cannot use hooks, useState, browser APIs
+- Good for: pages that fetch and display data
+
+Client Component:
+- Use lib/supabase/client.ts
+- Can use hooks, useState, Zustand, browser APIs
+- Good for: forms, interactive UI, real-time, GPS, camera
+
+When in doubt: start with Server Component. Add 'use client' only when you need interactivity.
 
 ---
 
 ## How to Check Permissions
 
-Always use the `usePermissions` composable. Never hardcode role checks inline.
+Always use the usePermissions hook. Never hardcode role checks.
 
 ```typescript
 // Correct
+'use client'
+import { usePermissions } from '@/hooks/use-permissions'
+
 const { can } = usePermissions()
 if (can('workout:create')) { ... }
 
-// Wrong — don't do this
-if (activeRole.value === 'trainer' || activeRole.value === 'owner') { ... }
+// Wrong
+if (activeRole === 'trainer' || activeRole === 'owner') { ... }
 ```
 
 Permission matrix is in STACK.md.
@@ -54,24 +77,29 @@ Permission matrix is in STACK.md.
 
 ## How to Query Supabase
 
-Always scope queries to the active workspace. Never query without workspace_id.
+Always scope queries to active workspace. Never query without workspace_id.
 
 ```typescript
-// Correct
+// In a Server Component or API route
+import { createClient } from '@/lib/supabase/server'
+
+const supabase = await createClient()
 const { data } = await supabase
   .from('workout_plans')
   .select('*')
-  .eq('workspace_id', activeWorkspace.value.id)
+  .eq('workspace_id', workspaceId)  // always scope
   .eq('member_id', memberId)
 
-// Wrong — missing workspace scope
+// In a Client Component
+'use client'
+import { createClient } from '@/lib/supabase/client'
+
+const supabase = createClient()
 const { data } = await supabase
   .from('workout_plans')
   .select('*')
-  .eq('member_id', memberId)
+  .eq('workspace_id', workspaceId)  // always scope
 ```
-
-RLS will also enforce this at database level, but always scope in the query too.
 
 ---
 
@@ -80,11 +108,13 @@ RLS will also enforce this at database level, but always scope in the query too.
 Files never go through your server. Always use presigned URLs.
 
 ```typescript
-// 1. Get presigned URL
-const { url, key } = await $fetch('/api/r2/presign', {
+// 1. Get presigned URL from API route
+const res = await fetch('/api/r2/presign', {
   method: 'POST',
-  body: { filename: file.name, contentType: file.type }
+  body: JSON.stringify({ filename: file.name, contentType: file.type }),
+  headers: { 'Content-Type': 'application/json' }
 })
+const { url, key } = await res.json()
 
 // 2. Upload directly to R2
 await fetch(url, { method: 'PUT', body: file })
@@ -97,18 +127,37 @@ await supabase.from('table').update({ file_url: key })
 
 ## Error Handling Pattern
 
-Every async operation must handle errors. Never leave empty catch blocks.
+Every async operation must handle errors. Never empty catch blocks.
 
 ```typescript
-// Composable pattern
 const { data, error } = await supabase.from('...').select('*')
 
 if (error) {
-  // Log for debugging
-  console.error('Failed to load members:', error.message)
-  // Show user-friendly message
-  toast.error('Could not load members. Please try again.')
+  console.error('Operation failed:', error.message)
+  // show user-friendly error in UI
   return
+}
+```
+
+---
+
+## API Route Pattern
+
+```typescript
+// app/api/feature/route.ts
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+
+export async function POST(req: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // do work
+  return NextResponse.json({ data })
 }
 ```
 
@@ -116,25 +165,23 @@ if (error) {
 
 ## TypeScript Rules
 
-- No `any` types. Use proper types from types/index.ts.
-- All Supabase query results must be typed.
-- All component props must be typed.
-- Run `npm run typecheck` before committing.
+- No any types. Use proper types from types/index.ts
+- All Supabase query results must be typed
+- All component props must have an interface defined
+- Run tsc --noEmit to check before committing
 
 ---
 
 ## Database Rules
 
-- Never write raw SQL in Nuxt code. Use Supabase client only.
-- All schema changes go in supabase/migrations/ as numbered SQL files.
-- Never modify existing migration files. Add new ones.
-- Every new table needs RLS enabled and policies written.
+- Never write raw SQL in Next.js code. Use Supabase client only.
+- All schema changes go in supabase/migrations/ as numbered SQL files
+- Never modify existing migration files — add new ones
+- Every new table needs RLS enabled and policies written
 
 ```sql
--- Every new table needs this
 alter table your_table enable row level security;
 
--- Then add policies
 create policy "policy name"
 on your_table for select
 using ( ... );
@@ -144,25 +191,25 @@ using ( ... );
 
 ## Testing Rules
 
-- Write the test before or alongside the feature. Never after.
-- Every new composable needs unit tests.
-- Every new table needs RLS integration tests.
-- Tests live in tests/ matching the source structure.
+- Write tests alongside the feature, not after
+- Every new hook needs unit tests
+- Every new table needs RLS integration tests
+- Tests live in tests/ matching the source structure
 
 ---
 
-## What Phase We Are On
+## Current Phase
 
-Check BUILD_ORDER.md and look for the current phase.
+Check BUILD_ORDER.md. Find the current phase.
 Only build what is in the current phase.
-Do not jump ahead.
+Do not jump ahead to the next phase.
 
 ---
 
 ## Commit Message Format
 
 ```
-feat: add member invite via phone number
+feat: add member invite via phone
 fix: correct GPS distance calculation
 test: add RLS tests for workout plans
 chore: update supabase types
@@ -170,27 +217,13 @@ chore: update supabase types
 
 ---
 
-## When Adding a New Feature
-
-1. Check BUILD_ORDER.md — is this in the current phase?
-2. Check SCHEMA.md — which tables does this touch?
-3. Check STACK.md — how do you call that service?
-4. Write migration if new tables needed
-5. Write RLS policies
-6. Write the composable
-7. Write tests
-8. Build the UI
-9. Verify TypeScript zero errors
-10. Verify tests pass
-
----
-
 ## Things to Never Do
 
-- Never put SUPABASE_SERVICE_KEY in client-side code
-- Never query without workspace_id scope
+- Never put SUPABASE_SERVICE_KEY in client-side code or NEXT_PUBLIC_ variables
+- Never query Supabase without workspace_id scope
 - Never skip RLS policies on new tables
-- Never use `any` type
+- Never use any type
 - Never commit .env.local
 - Never modify existing migration files
-- Never build phase N+1 before phase N is verified
+- Never use 'use client' unless you actually need browser features
+- Never mix server and client Supabase clients

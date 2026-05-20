@@ -6,54 +6,75 @@ Do not skip phases. Do not build phase 2 before phase 1 is done.
 
 ---
 
-## Phase 0 — Project Setup (Day 1)
+## Phase 0 — Project Setup (Day 1) ✅ DONE
 
-Do this once. Get the skeleton running before writing any feature code.
+```
+✅ Next.js 15 project created
+✅ Deployed to Cloudflare Workers & Pages
+✅ GitHub repo connected — auto-deploys on push
+✅ Supabase project created on supabase.com
+```
 
-### Steps
+### Remaining Phase 0 steps
 
 ```bash
-# 1. Create Nuxt project
-npx nuxi@latest init fitdesk
-cd fitdesk
+# Install all dependencies
+npm install @supabase/supabase-js @supabase/ssr
+npm install zustand
+npm install date-fns zod
 
-# 2. Install all dependencies
-npm install @nuxtjs/supabase @supabase/supabase-js
-npm install @pinia/nuxt pinia
-npm install @nuxtjs/tailwindcss
-npm install shadcn-nuxt
-npm install @vite-pwa/nuxt
-npm install @nuxtjs/color-mode
-npm install zod date-fns
+# shadcn/ui
+npx shadcn@latest init
+# When asked: Style → Default, Base color → Neutral, CSS variables → Yes
 
-npm install -D vitest @playwright/test
-npm install -D wrangler typescript @types/node
+# Dev dependencies
+npm install -D vitest @playwright/test @vitejs/plugin-react
+npm install -D wrangler
 
-# 3. Configure nuxt.config.ts (see STACK.md)
+# Create environment files
+# .env.local (never commit)
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_KEY=eyJ...
 
-# 4. Set up Supabase local
-npx supabase init
-npx supabase start
+# .env.example (commit this — no real values)
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_KEY=your_service_key
 
-# 5. Set up Cloudflare Pages
-# Connect GitHub repo in Cloudflare dashboard
-# Set build command: npm run build
-# Set output dir: .output/public
+# Add to .gitignore
+.env.local
+```
 
-# 6. Create .env.local with real values
-# Create .env.example with placeholder values
-# Add .env.local to .gitignore
+```bash
+# Create the Supabase folder structure
+mkdir -p supabase/migrations
+mkdir -p supabase/functions/webhook-zkteco
+mkdir -p supabase/functions/send-notification
 
-# 7. Create GitHub repo
-# Push initial commit
-# Verify Cloudflare auto-deploys
+# Create lib/supabase files (see STACK.md for content)
+mkdir -p lib/supabase
+touch lib/supabase/client.ts
+touch lib/supabase/server.ts
+
+# Create types file
+mkdir -p types
+touch types/index.ts
+
+# Create hooks folder
+mkdir -p hooks
+
+# Create stores folder
+mkdir -p stores
 ```
 
 ### Verification
 - [ ] `npm run dev` starts without errors
-- [ ] Cloudflare Pages deploys on push
-- [ ] Supabase local runs on localhost:54321
+- [ ] Cloudflare deploys on push (already working)
+- [ ] `.env.local` created with real Supabase keys
+- [ ] `lib/supabase/client.ts` and `server.ts` created (see STACK.md)
 - [ ] TypeScript has zero errors
+- [ ] `.env.local` is in `.gitignore`
 
 ---
 
@@ -65,49 +86,95 @@ No other feature can be built before this is solid.
 ### What to build
 
 ```
-1. Database migrations
+1. Database migrations (run in Supabase SQL editor or via CLI)
    - users table
    - workspaces table
    - workspace_members table
    - branches table (basic, no ZKTeco columns yet)
    - RLS policies for all four tables
+   → All SQL is in SCHEMA.md migration 0001
 
-2. Auth screens
-   - /auth/login → phone or email input
-   - /auth/verify → OTP input
-   - Supabase Auth OTP flow
+2. Supabase client files
+   - lib/supabase/client.ts  → browser client (see STACK.md)
+   - lib/supabase/server.ts  → server client (see STACK.md)
 
-3. Onboarding flow
-   - /onboarding → "What do you want to do?"
-     Options: Create a gym | Start freelancing | Join a gym
-   - /onboarding/create-gym → gym name, logo upload
-   - /onboarding/join-gym → enter gym code
-   - After any option → land in dashboard
+3. TypeScript types
+   - types/index.ts → all types (see STACK.md)
 
-4. Workspace switcher
-   - /workspace/switch → list all workspaces with role badge
-   - Switch updates Pinia store → entire UI reflects new context
-   - Active workspace persisted in localStorage
+4. Zustand store
+   - stores/workspace-store.ts (see STACK.md)
 
-5. Middleware
-   - auth.ts → redirect to /auth/login if no session
-   - workspace.ts → redirect to /workspace/switch if no active workspace
+5. Next.js middleware (root middleware.ts)
+   - Refreshes Supabase session on every request
+   - Redirects unauthenticated users away from /dashboard/*
+   → See STACK.md for exact middleware code
 
-6. Basic dashboard shell
-   - Layout with sidebar/bottom nav
+6. Auth screens
+   - app/(auth)/login/page.tsx → phone or email input
+   - app/(auth)/verify/page.tsx → OTP input
+   - Uses Supabase Auth OTP flow
+
+7. Onboarding flow
+   - app/(onboarding)/onboarding/page.tsx
+     → "What do you want to do?"
+     → Options: Create a gym | Start freelancing | Join a gym
+   - app/(onboarding)/create-gym/page.tsx
+     → gym name, logo upload
+   - app/(onboarding)/join-gym/page.tsx
+     → enter gym code
+
+8. Workspace switcher
+   - app/(app)/workspace/switch/page.tsx
+     → list all workspaces with role badge
+     → tap to switch → updates Zustand store
+     → active workspace persisted via Zustand persist middleware
+
+9. Basic dashboard shell
+   - app/(app)/layout.tsx → authenticated layout with nav
+   - app/(app)/dashboard/page.tsx → role-aware dashboard
    - Role-aware nav items (owner sees different tabs than member)
-   - "Good morning, Name" header
-   - Empty states for everything (will be filled in later phases)
+   - Empty states for everything (filled in later phases)
+
+10. Hooks
+    - hooks/use-workspace.ts → read active workspace + role
+    - hooks/use-permissions.ts → can() function (see STACK.md)
+    - hooks/use-auth.ts → current user, sign in, sign out
+```
+
+### Route structure for Phase 1
+
+```
+app/
+├── (auth)/
+│   ├── login/page.tsx          → /login
+│   └── verify/page.tsx         → /verify
+├── (onboarding)/
+│   ├── onboarding/page.tsx     → /onboarding
+│   ├── create-gym/page.tsx     → /create-gym
+│   └── join-gym/page.tsx       → /join-gym
+├── (app)/
+│   ├── layout.tsx              → authenticated shell
+│   ├── dashboard/page.tsx      → /dashboard
+│   └── workspace/
+│       └── switch/page.tsx     → /workspace/switch
+├── layout.tsx                  → root layout
+├── page.tsx                    → / landing (placeholder for now)
+└── globals.css
+middleware.ts                   → root level, not inside app/
 ```
 
 ### Tests to write (Phase 1)
-```
-Unit:
-- useWorkspace returns correct role
-- switchWorkspace updates store correctly
-- middleware redirects work
 
-Integration (RLS):
+```
+tests/unit/permissions.test.ts
+- usePermissions can() returns true for correct roles
+- usePermissions can() returns false for wrong roles
+
+tests/unit/workspace-store.test.ts
+- setActiveWorkspace updates store correctly
+- persist saves to localStorage
+
+tests/integration/rls-workspace.test.ts
 - Owner can see their workspace
 - Member cannot see another member's workspace_member row
 - User with no workspaces gets empty array not error
@@ -115,12 +182,15 @@ Integration (RLS):
 
 ### Verification
 - [ ] User can sign up with phone OTP
-- [ ] User can create a gym → lands in gym dashboard
-- [ ] User can create freelancer profile → lands in freelancer dashboard
+- [ ] User can sign up with email OTP
+- [ ] User can create a gym → lands in /dashboard
+- [ ] User can start freelancing → lands in /dashboard
 - [ ] User can switch between workspaces
 - [ ] Role badge shows correctly per workspace
-- [ ] Logged out user redirected to /auth/login
+- [ ] Unauthenticated user redirected to /login
 - [ ] User with no workspace redirected to /onboarding
+- [ ] TypeScript zero errors
+- [ ] Build succeeds
 
 ---
 
@@ -133,18 +203,21 @@ Members can join via invite or gym code.
 
 ```
 1. Database migrations
-   - workspace_members extended (status column)
+   - workspace_members status column already in migration 0001
    - Add unique index: workspace_members(workspace_id, user_id, role)
+   → See SCHEMA.md migration 0001
 
-2. Member list page (/members)
+2. Member list page
+   app/(app)/members/page.tsx → /members
    - Shows all members in active workspace
    - Filter by: All | No plan | Fee due | Inactive
    - Search by name
-   - Status badge per member (on track / needs plan / fee due / inactive)
+   - Status badge per member
    - Role check: only owner/manager/receptionist/trainer can see this
+   - Members see "Access denied"
 
 3. Add member flow
-   - Enter phone number → sends WhatsApp/SMS invite
+   - Enter phone number → sends invite (WhatsApp/SMS in v2, for now email)
    - Member receives link → signs up → auto-joined to workspace
    - Member status: active immediately
 
@@ -153,41 +226,44 @@ Members can join via invite or gym code.
    - Admin sees pending list → approves or rejects
    - Member status: pending → active after approval
 
-5. Member profile page (/members/[id])
-   - Basic info tab: name, phone, joined date, trainer assigned
-   - Assign trainer (dropdown of gym's trainers)
+5. Member profile page
+   app/(app)/members/[id]/page.tsx → /members/123
+   - Basic info: name, phone, joined date, trainer assigned
+   - Assign trainer dropdown
    - Suspend / reactivate member
-   - Role check: trainer can only see their own assigned members
+   - Trainer can only see their own assigned members
 
 6. Invite link generation
-   - Each gym has a unique invite link
-   - Clicking link → /join?code=xxx → auto-populates gym code
+   - Each branch has unique qr_code (already in branches table)
+   - Invite URL: /join?code=xxx
+   - app/join/page.tsx → reads code, creates pending membership
 ```
 
 ### Tests to write (Phase 2)
-```
-Unit:
-- generateGymCode produces unique codes
-- Member invite link resolves to correct gym
 
-Integration (RLS):
-- Trainer can only see members assigned to them
+```
+tests/unit/member.test.ts
+- generateGymCode produces unique codes
+- invite link resolves to correct workspace
+
+tests/integration/rls-member.test.ts
+- Trainer sees only their assigned members
 - Receptionist can create workspace_member rows
 - Receptionist cannot update workout_plans
 - Member cannot see other members
 
-E2E:
-- Owner adds member via phone → member receives invite
+tests/e2e/member-flow.spec.ts
+- Owner adds member → member receives invite
 - Member joins via gym code → admin approves → member sees dashboard
 ```
 
 ### Verification
 - [ ] Owner can add a member
-- [ ] Member receives invite (WhatsApp or SMS link)
+- [ ] Member receives invite link
 - [ ] Member clicks link → signs up → lands in gym workspace
 - [ ] Member self-registers with gym code → pending → approved → active
 - [ ] Trainer sees only their assigned members
-- [ ] Receptionist can add members but not edit workout plans
+- [ ] Receptionist can add members but cannot edit workout plans
 
 ---
 
@@ -198,338 +274,285 @@ Trainers assign workout plans. Members see today's workout.
 ### What to build
 
 ```
-1. Database migrations
-   - exercise_library table
-   - workout_plans table
-   - workout_weeks table
-   - workout_sessions table
-   - workout_exercises table
-   - workout_session_overrides table
-   - workout_exercise_overrides table
-   - workout_session_skips table
-   - workout_logs table
-   - workout_set_logs table
-   - RLS for all workout tables
+1. Database migrations → SCHEMA.md migration 0003
+   - exercise_library
+   - workout_plans
+   - workout_weeks
+   - workout_sessions
+   - workout_exercises
+   - workout_session_overrides
+   - workout_exercise_overrides
+   - workout_session_skips
+   - workout_logs
+   - workout_set_logs
 
-2. Exercise library (/workout/library)
-   - List all exercises (platform + trainer's own)
-   - Upload new exercise (name, muscle group, equipment, video)
-   - Video upload → R2 presigned URL
-   - Search and filter by muscle group
+2. Exercise library
+   app/(app)/workout/library/page.tsx
+   - List platform + workspace exercises
+   - Upload: name, muscle group, equipment, video → R2
 
-3. Create workout plan flow
-   - Trainer selects a member
-   - Chooses: Sequential or Calendar
-   - Sets missed_session_behaviour
-   - Sets total_weeks (or null for forever)
-   - Adds sessions (label, exercises, sets/reps/weight)
-   - Each exercise can attach a video from library
+3. Create workout plan
+   app/(app)/workout/new/page.tsx
+   - Select member
+   - Sequential or Calendar
+   - missed_session_behaviour
+   - total_weeks (or null = forever)
+   - Add sessions with exercises
 
-4. Member workout view (/workout)
-   - Shows today's session based on schedule_type
-   - Sequential: reads current_session_index → shows that session
-   - Calendar: reads day of week → shows that session
+4. Member workout view
+   app/(app)/workout/page.tsx
+   - Sequential: shows session at current_session_index
+   - Calendar: shows session for today's day of week
    - Exercise list with sets/reps/weight
-   - Play button if video attached
-   - "Mark complete" button → advances index
+   - Video play button
+   - Mark complete → advances index
 
 5. Missed session logic
-   - Cron job (Supabase Edge Function) runs at midnight
-   - Checks members with skip_and_continue plans
-   - Advances index for absent members
+   supabase/functions/missed-sessions/index.ts
+   - Supabase cron at midnight
+   - skip_and_continue plans → auto-advance
    - Records skip in workout_session_skips
 
-6. Session override flow (trainer)
-   - Trainer opens member profile → Today's session
-   - Tap "Override today" → swap exercises for this date only
+6. Session override
+   - Trainer opens member → today's session → Override
+   - Swap exercises for today only
    - Template untouched
 ```
 
 ### Tests to write (Phase 3)
-```
-Unit:
-- getNextSession returns correct index for sequential plans
-- getNextSession returns correct day for calendar plans
-- missed_session_behaviour logic (all three modes)
-- Session override takes priority over template
 
-Integration (RLS):
+```
+tests/unit/workout-logic.test.ts
+- getNextSession sequential: correct index returned
+- getNextSession calendar: correct day returned
+- push_forward: missed session shown next visit
+- skip_and_continue: sequence advances past missed
+- trainer_decides: notification created
+- override takes priority over template
+
+tests/integration/rls-workout.test.ts
 - Trainer can only assign plans to their members
 - Member can only view their own plans
-- Owner can view all plans in their workspace
+- Owner can view all plans in workspace
 
-E2E:
-- Trainer creates plan → member sees it immediately
-- Member marks session complete → next session shown
-- Trainer overrides today → member sees override, not template
+tests/e2e/trainer-flow.spec.ts
+- Trainer creates plan → member sees it
+- Member marks complete → next session shown
+- Override shown to member, template unchanged
 ```
 
 ### Verification
-- [ ] Trainer can create a sequential workout plan
-- [ ] Trainer can create a calendar-based plan
+- [ ] Trainer creates sequential plan
+- [ ] Trainer creates calendar plan
 - [ ] Member sees correct session today
 - [ ] Mark complete advances the plan
-- [ ] Skip recorded when member doesn't come
-- [ ] Override works for one day without affecting template
+- [ ] Skip recorded when member absent
+- [ ] Override works for one day only
 - [ ] Video plays from R2
 
 ---
 
 ## Phase 4 — Diet Module (Week 7)
 
-Trainers assign structured diet plans. Members see today's meals.
-
 ### What to build
 
 ```
-1. Database migrations
-   - diet_plans table
-   - diet_meals table
-   - diet_items table
-   - RLS for diet tables
+1. Database migrations → SCHEMA.md migration 0004
+   - diet_plans, diet_meals, diet_items
 
-2. Create diet plan flow (trainer)
+2. Create diet plan (trainer)
+   app/(app)/diet/new/page.tsx
    - Plan name, total calories
-   - Add meals (Breakfast, Lunch, Dinner, Snack etc)
-   - Each meal: name, time label, order
-   - Each item: name, quantity, calories, protein, carbs, fat, optional image
+   - Add meals with time labels
+   - Add items: name, quantity, macros, optional photo
 
-3. Member diet view (/diet)
-   - Today's meals listed
-   - Calories progress bar (eaten / target)
-   - Filter by meal (All / Breakfast / Lunch etc)
-   - Each item shows macros
-   - Food photo if trainer attached one
-```
-
-### Tests to write (Phase 4)
-```
-Unit:
-- calculateTotalCalories sums items correctly
-- getMealProgress returns correct percentage
-
-Integration (RLS):
-- Member sees only their active diet plan
-- Trainer can only see diet plans they created
+3. Member diet view
+   app/(app)/diet/page.tsx
+   - Today's meals
+   - Calorie progress bar
+   - Filter by meal
+   - Macros per item
+   - Food photo if attached
 ```
 
 ### Verification
-- [ ] Trainer creates a diet plan with meals and items
-- [ ] Member sees today's diet plan
+- [ ] Trainer creates diet plan
+- [ ] Member sees today's meals
 - [ ] Calorie total correct
-- [ ] Macros shown per item
+- [ ] Macros shown
 - [ ] Food photos load from R2
 
 ---
 
 ## Phase 5 — Attendance Module (Week 8)
 
-Members check in. Trainers see who came.
-
 ### What to build
 
 ```
-1. Database migrations
-   - attendance table
-   - Unique index: one check-in per member per branch per day
+1. Database migrations → SCHEMA.md migration 0005
+   - attendance table with unique index
 
-2. GPS check-in flow
-   - Member taps Check In tab
-   - App requests location permission
-   - Calculates distance from branch GPS coordinates
-   - Within 50m → attendance logged
-   - Outside 50m → "You are not at the gym"
+2. GPS check-in
+   app/(app)/attendance/page.tsx (client component)
+   - navigator.geolocation.getCurrentPosition()
+   - Calculate distance from branch lat/lng
+   - Within 50m → log attendance, method: gps
+   - Outside → error message
 
-3. QR check-in flow
-   - Branch has a unique QR code (already in branches table)
-   - Member scans QR → attendance logged
-   - Duplicate scan on same day → "Already checked in"
-   - Print-ready QR page for gym to post at entrance
+3. QR check-in
+   - Member scans gym QR → reads branch qr_code
+   - Validates + logs attendance, method: qr_scan
+   - With GPS combined: both must pass
 
-4. Manual attendance (trainer/receptionist)
-   - Open member list → tap member → Mark attendance
-   - Records method: manual, marked_by: staff user
+4. Manual (trainer/receptionist)
+   - Member list → tap → Mark attendance
+   - method: manual, marked_by: staff user id
 
-5. Attendance history (member view)
-   - Weekly strip: M T W T F S S
-   - Present / absent / missed dots
-   - Streak count
-   - Monthly calendar view
+5. Attendance history (member)
+   - Weekly strip M T W T F S S
+   - Streak counter
 
-6. Attendance dashboard (trainer/owner view)
-   - Today's check-ins: live list
-   - Who hasn't come in 7+ days (inactive filter)
-```
-
-### Tests to write (Phase 5)
-```
-Unit:
-- calculateDistance returns correct metres
-- isWithinGeofence returns true/false correctly
-- Duplicate check-in prevention logic
-
-Integration:
-- Second check-in on same day is ignored
-- Manual attendance records marked_by correctly
-- Member can only see their own attendance
-
-E2E:
-- Member checks in via GPS → logged
-- Trainer manually marks attendance → logged
-- Duplicate scan shows "Already checked in"
+6. Attendance dashboard (trainer/owner)
+   - Today's check-ins live
+   - Inactive members list
 ```
 
 ### Verification
-- [ ] GPS check-in works within 50m of branch
-- [ ] GPS check-in rejected outside 50m
-- [ ] QR code printable and scannable
-- [ ] Duplicate check-in rejected
+- [ ] GPS check-in within 50m works
+- [ ] GPS check-in outside 50m rejected
+- [ ] QR scannable and logs attendance
+- [ ] Duplicate check-in same day rejected
 - [ ] Streak calculated correctly
-- [ ] Trainer sees live attendance today
+- [ ] Trainer sees today's attendance live
 
 ---
 
 ## Phase 6 — Progress + Payment (Week 9-10)
 
-Members log their progress. Gym tracks fee payments.
-
 ### What to build
 
 ```
-1. Database migrations
-   - member_progress table (user-scoped not workspace-scoped)
-   - progress_photos table (workspace-scoped)
-   - membership_plans table
-   - member_subscriptions table
-   - member_payments table
+1. Database migrations → SCHEMA.md migration 0005
+   - member_progress (user_id scoped)
+   - progress_photos (workspace_member_id scoped)
+   - membership_plans
+   - member_subscriptions
+   - member_payments
 
 2. Progress logging (member)
-   - Log today's weight, measurements
-   - Upload progress photos (front/back/side)
+   app/(app)/progress/page.tsx
+   - Weight, measurements form
+   - Photo upload (front/back/side) → R2
    - Notes field
-   - One entry per day enforced
+   - One entry per day
 
-3. Progress history (trainer view)
-   - Weight chart over time
-   - Measurement history table
-   - Progress photos timeline
+3. Progress history (trainer)
+   - Weight chart (use recharts or chart.js)
+   - Measurement table
+   - Photo timeline
 
-4. Membership plans setup (owner)
-   - Create plans: Monthly ₹1500, Quarterly ₹4000 etc
-   - Duration in days, price
+4. Membership plans (owner)
+   app/(app)/settings/plans/page.tsx
+   - Create Monthly/Quarterly/Annual plans
 
-5. Fee tracking (receptionist/owner)
-   - Assign member to a plan → start and end date calculated
-   - Payment status: unpaid / paid / partial
-   - Mark as paid manually
-   - Member uploads UPI screenshot
-   - Overdue list in dashboard
-   - Payment history per member
+5. Fee tracking
+   app/(app)/members/[id]/subscription/page.tsx
+   - Assign plan → auto calc end date
+   - Mark paid manually
+   - Member uploads screenshot → R2
+   - Overdue shown in red on member list
 ```
 
 ### Verification
-- [ ] Member logs weight → shows in chart
-- [ ] Progress photos upload to R2
-- [ ] Owner creates membership plans
-- [ ] Receptionist assigns member to plan
-- [ ] Receptionist marks payment as paid
-- [ ] Member uploads screenshot
-- [ ] Fee overdue shows in red on dashboard
+- [ ] Member logs weight → chart updates
+- [ ] Photos upload to R2
+- [ ] Owner creates plans
+- [ ] Receptionist assigns and marks paid
+- [ ] Fee overdue shows in red
 
 ---
 
 ## Phase 7 — Notifications (Week 11)
 
-In-app and WhatsApp notifications.
-
 ### What to build
 
 ```
-1. Database migrations
+1. Database migrations → SCHEMA.md migration 0006
    - notifications table
 
 2. In-app notifications
-   - Bell icon in nav with unread count
-   - Notification list page
+   - Bell icon with unread badge in nav
+   - app/(app)/notifications/page.tsx
    - Mark as read
 
-3. Trigger points (create notification on these events)
-   - Member enrolled → "Welcome to [gym]"
-   - Plan assigned → "Your trainer has assigned a workout plan"
-   - Fee due in 3 days → "Your fee is due on [date]"
-   - Fee overdue → "Your fee was due on [date]"
-   - Payment confirmed → "Payment received ✓"
-   - Member inactive 7 days → trainer notified
+3. Create notifications on these events:
+   - Member enrolled
+   - Plan assigned
+   - Fee due in 3 days (cron edge function)
+   - Fee overdue (cron edge function)
+   - Payment confirmed
+   - Member inactive 7 days
 
-4. WhatsApp via Gupshup (v2 — wire up later)
-   - Notification row created first
-   - Edge Function reads and sends via Gupshup API
-   - external_sent flag updated
+4. WhatsApp via Gupshup → v2
+   - Rows already created in notifications table
+   - Just wire up external_sent when Gupshup added
 ```
 
 ### Verification
-- [ ] Member sees notification when plan assigned
-- [ ] Fee due reminder appears 3 days before
-- [ ] Trainer notified when member inactive
+- [ ] Notification appears when plan assigned
+- [ ] Fee reminder at 3 days before due
+- [ ] Trainer notified when member inactive 7 days
 
 ---
 
 ## Phase 8 — Polish + Launch Prep (Week 12)
 
-Before showing to any gym owner.
-
 ### What to build
 
 ```
-1. Empty states — every page has a friendly empty state
-   No members yet → "Add your first member"
-   No plan → "Your trainer hasn't assigned a plan yet"
-   No attendance → "Check in at the gym to start your streak"
+1. Empty states — every page
+   "Add your first member" / "No plan assigned yet" etc
 
-2. Error handling — every API call has proper error UI
+2. Error handling — every fetch
    Network error → retry button
-   Permission error → "You don't have access to this"
-   Not found → clean 404
+   Permission error → friendly message
+   404 → clean not found page
 
-3. Loading states — every data fetch has a skeleton
+3. Loading states — skeletons on every page
    No flash of empty content
 
-4. PWA setup
-   - App manifest with FitDesk name and icon
-   - Service worker caches today's workout and diet plan
-   - Offline shows cached data not blank screen
+4. PWA
+   next.config.ts → PWA config
+   public/manifest.json
+   Service worker caches today's workout + diet
 
-5. Basic landing page (fitdesk.in)
-   - What is FitDesk
-   - Who it's for
-   - Pricing table
-   - "Start free trial" → /onboarding
+5. Landing page
+   app/page.tsx → real landing page
+   - What is FitDesk, who it's for, pricing, CTA
 
 6. Run full test suite
-   - All unit tests pass
-   - All integration (RLS) tests pass
-   - E2E happy paths pass
+   npm run test:unit
+   npm run test:integration
+   npm run test:e2e
 ```
 
 ### Verification
-- [ ] Every page has an empty state
-- [ ] Every error is handled gracefully
-- [ ] PWA installable from mobile browser
-- [ ] Offline shows cached workout plan
-- [ ] Landing page live at fitdesk.in
+- [ ] Every page has empty state
+- [ ] Every error handled gracefully
+- [ ] PWA installable from mobile
+- [ ] Offline shows cached workout
+- [ ] Landing page live
 - [ ] All tests green
 
 ---
 
 ## After Launch — v2 Queue
 
-Build these after first paying customers:
-
 - [ ] ZKTeco hardware integration (Phase 9)
 - [ ] Razorpay subscription billing (Phase 10)
-- [ ] WhatsApp notifications via Gupshup (Phase 11)
-- [ ] Capacitor mobile app build (Phase 12)
-- [ ] Dealer map in help section (Phase 13)
+- [ ] WhatsApp via Gupshup (Phase 11)
+- [ ] Capacitor mobile app (Phase 12)
+- [ ] Dealer support map (Phase 13)
 - [ ] Gym public landing pages (Phase 14)
 
 ---
@@ -537,37 +560,36 @@ Build these after first paying customers:
 ## Daily Development Workflow
 
 ```bash
-# Start local environment
-npx supabase start
+# Start
 npm run dev
 
 # Before committing
-npm run test:unit
-npm run typecheck
+npx tsc --noEmit        # zero TypeScript errors
+npm run test:unit       # unit tests pass
 
 # Before merging to main
 npm run test:integration
-npm run build  # verify build doesn't break
+npm run build
 ```
 
 ---
 
-## When You're Stuck
+## When Stuck
 
-1. Check SCHEMA.md for table structure
-2. Check STACK.md for how to call Supabase
-3. Check the relevant test file — tests describe expected behaviour
-4. If a feature isn't working, write the test first, then fix the code
+1. Check SCHEMA.md — which table does this touch?
+2. Check STACK.md — how do I call Supabase? Server or client component?
+3. Check CLAUDE.md — am I breaking any rules?
+4. Write the test first — it defines what "working" means
 
 ---
 
-## Definition of Done (for each feature)
+## Definition of Done
 
 A feature is done when:
-- [ ] It works in the browser
+- [ ] Works in browser
 - [ ] Unit test written and passing
-- [ ] RLS test written and passing (if touches DB)
+- [ ] RLS test written and passing
 - [ ] Empty state handled
 - [ ] Error state handled
-- [ ] TypeScript shows zero errors
+- [ ] TypeScript zero errors
 - [ ] Build succeeds
